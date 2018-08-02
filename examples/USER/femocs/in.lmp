@@ -16,8 +16,8 @@ variable height      equal 60  # Angstroms
 variable angle       equal 0   # Degrees
 
 variable dumpname    string "tip_*.dump"
-variable scanX       equal 64 # 64, 64 or 19.5
-variable scanY       equal 64 # 64, 45 or 22.5
+variable scanX       equal 32 # 64, 64 or 19.5
+variable scanY       equal 32 # 64, 45 or 22.5
 variable scanD       equal 4  # 4, 4.2 or 3.5
 
 # -------------------------------------------
@@ -115,7 +115,7 @@ fix nve1 all nve
 velocity all create 300.0 12345
 fix temp1 all temp/berendsen 300.0 300.0 100.0
 
-fix fem1 all femocs 50
+fix fem1 all femocs in.fem
 
 run 2
 
