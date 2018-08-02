@@ -63,12 +63,12 @@ PACKUSER = user-atc user-awpmd user-bocs user-cgdna user-cgsdk user-colvars \
 	   user-mgpt user-misc user-mofff user-molfile \
 	   user-netcdf user-omp user-phonon user-qmmm user-qtb \
 	   user-quip user-reaxc user-smd user-smtbq user-sph user-tally \
-	   user-uef user-vtk
+	   user-uef user-vtk user-femocs
 
 PACKLIB = compress gpu kim kokkos latte meam mpiio mscg poems \
 	  python reax voronoi \
 	  user-atc user-awpmd user-colvars user-h5md user-lb user-molfile \
-	  user-netcdf user-qmmm user-quip user-smd user-vtk
+	  user-netcdf user-qmmm user-quip user-smd user-vtk user-femocs
 
 PACKSYS = compress mpiio python user-lb
 

@@ -1173,3 +1173,7 @@
 /pair_vashishta*.cpp
 /pair_vashishta*.h
 
+/pair_eam_cd.cpp
+/pair_eam_cd.h
+/fix_femocs.cpp
+/fix_femocs.h
