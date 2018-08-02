@@ -1,0 +1,3 @@
+[submodule "lib/femocs"]
+	path = lib/femocs
+	url = https://github.com/veskem/femocs.git
