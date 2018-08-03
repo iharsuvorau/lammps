@@ -232,6 +232,168 @@ void FixFemocs::post_force(int vflag)
     //    success += femocs.export_data(v, n_atoms, "velocity");
 }
 
+void FixFemocs::post_force_manycore(int vflag)
+{
+    /*
+
+    // check if it's time to rerun field solver
+    if (update->ntimestep % nevery) return;
+
+    // energy and virial setup
+    if (vflag) v_setup(vflag);
+    else evflag = 0;
+
+    if (lmp->kokkos)
+        atom->sync_modify(Host, (unsigned int) (F_MASK | MASK_MASK),
+                (unsigned int) F_MASK);
+
+    double virial[6];
+    double unwrap[3];
+
+    double **x = atom->x;
+    double **f = atom->f;
+    double **v = atom->v;
+    int *mask = atom->mask;
+    imageint *image = atom->image;
+
+    int nlocal = atom->nlocal;
+    int nglobal = atom->natoms;
+    int n_procs = comm->nprocs;
+
+    // foriginal[0]     = "potential energy" for added force
+    // foriginal[1,2,3] = force on atoms before extra force added
+    foriginal[0] = foriginal[1] = foriginal[2] = foriginal[3] = 0.0;
+    force_flag = 0;
+
+    // store total force before modification
+    print_msg("storing forces...");
+    for (int i = 0; i < nlocal; i++) {
+        if (mask[i] & groupbit) {
+            foriginal[1] += f[i][0];
+            foriginal[2] += f[i][1];
+            foriginal[3] += f[i][2];
+        }
+    }
+
+    // TODO make proper allocation
+    int atoms_per_core[32];
+    int displ[32];
+    double x_all[1000];
+    double local_forces[1000];
+
+    MPI_Gather(nlocal, 1, MPI_INT, atoms_per_core, 1, MPI_INT, 0, world);
+
+    // TODO check proper displacements
+
+    for (int i = 0; i < n_procs; ++i)
+        for (int j = 0; j < atoms_per_core[i]; ++j)
+            displ[i] += atoms_per_core[j];
+
+    for (int i = 0; i < n_procs; ++i) {
+        atoms_per_core[i] *= 3;
+        displ[i] *= 3;
+    }
+
+    // TODO check how to properly gather 2D arrays
+
+    MPI_Gatherv(x, 3*nlocal, MPI_DOUBLE, x_all, atoms_per_core, displ, MPI_DOUBLE, 0, world);
+
+    // TODO handle errors properly
+
+    if (comm->me == 0) {
+        if (run_femocs(nglobal, &x[0][0])) return;
+        if (export_forces(nglobal)) return;
+    }
+
+    // TODO distribute pair potential between cores
+
+    foriginal[0] = 0;
+
+    for (int i = 0; i < nlocal; i++) {
+        if (mask[i] & groupbit)
+            foriginal[0] += pair_pot[i];
+    }
+
+    // TODO distribute forces between cores
+
+    print_msg("modifying forces & energies...");
+    for (int i = 0; i < nlocal; i++) {
+        if (mask[i] & groupbit) {
+            // add electrostatic force
+            f[i][0] += sforce[i][0];
+            f[i][1] += sforce[i][1];
+            f[i][2] += sforce[i][2];
+
+            // if requested, store atom-wise added energy
+            if (evflag) {
+                domain->unmap(x[i],image[i],unwrap);
+
+                virial[0] = sforce[i][0] * unwrap[0];
+                virial[1] = sforce[i][1] * unwrap[1];
+                virial[2] = sforce[i][2] * unwrap[2];
+                virial[3] = sforce[i][0] * unwrap[1];
+                virial[4] = sforce[i][0] * unwrap[2];
+                virial[5] = sforce[i][1] * unwrap[2];
+                v_tally(i, virial);
+            }
+        }
+    }
+
+    //*/
+}
+
+int FixFemocs::run_femocs(int n_atoms, double *xyz) {
+    // import atomistic data to Femocs
+    // NB! Due to sorting atom indices change between time steps
+    //     Maybe storing atoms helps as described in Developer.pdf
+    print_msg("importing atoms...");
+    if (femocs.import_atoms(n_atoms, xyz)) {
+        print_msg("importing atoms failed!");
+        return 1;
+    }
+
+    // solve equations
+    print_msg("solving equations...");
+    if (femocs.run()) {
+        print_msg("solving equations failed!");
+        return 1;
+    }
+
+    return 0;
+}
+
+int FixFemocs::export_forces(int n_atoms) {
+    int *mask = atom->mask;
+
+    // reallocate sforce array if necessary, otherwise just clean it
+    if (atom->nmax > maxatom) {
+        maxatom = atom->nmax;
+        memory->destroy(sforce);
+        memory->create(sforce,maxatom,3,"femocs:sforce");
+
+        memory->destroy(pair_pot);
+        memory->create(pair_pot,maxatom,"femocs:pair_pot");
+    } else {
+        for (int i = 0; i < n_atoms; i++) {
+            sforce[i][0] = sforce[i][1] = sforce[i][2] = 0;
+        }
+    }
+
+    // export atom-wise pair potential
+    if (femocs.export_data(pair_pot, n_atoms, "pair_potential")) {
+        print_msg("exporting sum of pair potential failed!");
+        return 1;
+    }
+
+    // export electrostatic forces
+    if (femocs.export_data(&sforce[0][0], n_atoms, "force")) {
+        print_msg("exporting forces failed!");
+        return 1;
+    }
+
+    return 0;
+}
+
 /* ----------------------------------------------------------------------
  * Calculate forces before the first time step.
  * It is required by the velocity-Verlet method.

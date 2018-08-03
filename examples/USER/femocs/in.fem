@@ -53,5 +53,5 @@ maxerr_SC = 1.e-3               # convergence criterion for space charge loop
 
 # Heating parameters
 #---------------
-heating_mode = transient        # method to calculate heating effects in material; none, stationary, transient, converge
+heating_mode = none             # method to calculate heating effects in material; none, stationary, transient, converge
 force_mode = all                # forces to be calculated; all, lorentz, none

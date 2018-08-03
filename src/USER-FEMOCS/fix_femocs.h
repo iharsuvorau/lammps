@@ -34,6 +34,8 @@ public:
   double compute_vector(int);
   double memory_usage();
 
+  void post_force_manycore(int vflag);
+
 protected:
   femocs::Femocs femocs;
 
@@ -45,6 +47,8 @@ protected:
   double *pair_pot;
 
   void print_msg(char* msg);
+  int run_femocs(int n_atoms, double *xyz);
+  int export_forces(int n_atoms);
 };
 
 }
