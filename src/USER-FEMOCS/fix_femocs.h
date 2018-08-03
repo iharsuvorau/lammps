@@ -9,8 +9,6 @@ FixStyle(femocs,FixFemocs)
 
 #include "fix.h"
 #include "Femocs.h"
-#include <stdio.h>
-#include <stdlib.h>
 
 namespace LAMMPS_NS {
 
@@ -39,20 +37,14 @@ public:
 protected:
   femocs::Femocs femocs;
 
-  // TODO clarify & clean them up
-
-  double xvalue,yvalue,zvalue;
-  int varflag,iregion;
-  char *xstr,*ystr,*zstr,*estr;
-  char *idregion;
-  int xvar,yvar,zvar,evar,xstyle,ystyle,zstyle,estyle;
   double foriginal[4],foriginal_all[4];
   int force_flag;
   int ilevel_respa;
   int maxatom;
   double **sforce;
+  double *pair_pot;
 
-  void print(char* msg);
+  void print_msg(char* msg);
 };
 
 }
