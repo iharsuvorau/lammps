@@ -35,21 +35,21 @@ FixFemocs::FixFemocs(LAMMPS *lmp, int narg, char **arg) :
     if (narg < 4)
         error->all(FLERR,"Illegal fix femocs command");
 
-    femocs.read_conf(arg[3]);
+    femocs.read_conf(arg[3]); // read Femocs configuration parameters
 
     // optional args: every
 
     int iarg = 4;
     while (iarg < narg) {
         if (strcmp(arg[iarg],"every") == 0) {
-            if (iarg+2 > narg) error->all(FLERR,"Illegal fix addforce command");
+            if (iarg+2 > narg) error->all(FLERR,"Illegal fix femocs command");
             nevery = atoi(arg[iarg+1]);
-            if (nevery <= 0) error->all(FLERR,"Illegal fix addforce command");
+            if (nevery <= 0) error->all(FLERR,"Illegal fix femocs command");
             iarg += 2;
         }
     }
 
-    // specify what features the fix has
+    // flags related to force & velocity modification
     dynamic_group_allow = 1;
     scalar_flag = 1;
     vector_flag = 1;
@@ -59,8 +59,13 @@ FixFemocs::FixFemocs(LAMMPS *lmp, int narg, char **arg) :
     respa_level_support = 1;
     virial_flag = 1;
 
-    memory->create(sforce,maxatom,3,"addforce:sforce");
-    memory->create(pair_pot,maxatom,"addforce:pair_pot");
+    nevery = 1;  // temperature should be taken care in every time step
+    global_freq = nevery;
+
+    memory->create(sforce,maxatom,3,"femocs:sforce");
+    memory->create(pair_pot,maxatom,"femocs:pair_pot");
+
+    kin_energy = 0;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -92,6 +97,7 @@ int FixFemocs::setmask()
     mask |= FixConst::THERMO_ENERGY;
     mask |= FixConst::POST_FORCE_RESPA;
     mask |= FixConst::MIN_POST_FORCE;
+    mask |= FixConst::END_OF_STEP;
     return mask;
 }
 
@@ -228,8 +234,6 @@ void FixFemocs::post_force(int vflag)
 
     //    // export potential energy per atom (pair-potential)
     //    success += femocs.export_data(Epair_all, n_atoms, "pair_potential");
-    //    // scale velocities
-    //    success += femocs.export_data(v, n_atoms, "velocity");
 }
 
 void FixFemocs::post_force_manycore(int vflag)
@@ -394,6 +398,22 @@ int FixFemocs::export_forces(int n_atoms) {
     return 0;
 }
 
+void FixFemocs::end_of_step()
+{
+  double **v = atom->v;
+  int nlocal = atom->nlocal;
+
+  if (femocs.export_data(&v[0][0], nlocal, "velocity")) {
+    print_msg("scaling velocities failed!");
+    return;
+  }
+
+  if (femocs.export_data(&kin_energy, nlocal, "kin_energy")) {
+    print_msg("exporting kinetic energy failed!");
+    return;
+  }
+}
+
 /* ----------------------------------------------------------------------
  * Calculate forces before the first time step.
  * It is required by the velocity-Verlet method.
@@ -448,7 +468,7 @@ double FixFemocs::compute_scalar()
         MPI_Allreduce(foriginal,foriginal_all,4,MPI_DOUBLE,MPI_SUM,world);
         force_flag = 1;
     }
-    return foriginal_all[0];
+    return foriginal_all[0] + kin_energy;
 }
 
 /* ----------------------------------------------------------------------

@@ -29,6 +29,7 @@ public:
   void post_force(int);
   void post_force_respa(int, int, int);
   void min_post_force(int);
+  void end_of_step();
 
   double compute_scalar();
   double compute_vector(int);
@@ -45,6 +46,8 @@ protected:
   int maxatom;
   double **sforce;
   double *pair_pot;
+
+  double kin_energy;   ///< Kinetic energy added/removed due to temperature scaling
 
   void print_msg(char* msg);
   int run_femocs(int n_atoms, double *xyz);
