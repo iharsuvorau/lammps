@@ -45,7 +45,6 @@ protected:
   int ilevel_respa;
   int maxatom;
   double **sforce;
-  double *pair_pot;
 
   double kin_energy;   ///< Kinetic energy added/removed due to temperature scaling
 
