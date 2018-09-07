@@ -20,8 +20,8 @@ Vappl = 0.0                    # anode voltage [V]
 smoothen_field = true
 distance_tol = 0.0              # max rms distance atoms are allowed to move between runs before the solution is recalculated; 0 forces to recalculate every time-step
 n_writefile = 1                 # minimum number of time steps between writing file; 0 turns writing off
-femocs_verbose_mode = verbose   # control verbosity in console; mute, silent or verbose
-anode_bc = neumann				# boundary condition type at anode; dirichlet or neumann
+femocs_verbose_mode = silent    # control verbosity in console; mute, silent or verbose
+anode_bc = neumann              # boundary condition type at anode; dirichlet or neumann
 coarse_factor = 0.3 4 2         # coarsening factor; bigger number gives coarser surface
                                 # 1st - coarsening factor for atoms outside the coarsening cylinder
                                 # 2nd - minimum distance between atoms in nanotip below apex [latconst/4]
@@ -53,5 +53,5 @@ maxerr_SC = 1.e-3               # convergence criterion for space charge loop
 
 # Heating parameters
 #---------------
-heating_mode = none             # method to calculate heating effects in material; none, stationary, transient, converge
+heating_mode = transient        # method to calculate heating effects in material; none, stationary, transient, converge
 force_mode = all                # forces to be calculated; all, lorentz, none
