@@ -123,8 +123,7 @@ thermo_style	custom step cpu temp press vol
 
 fix nve1 all nve
 velocity movgroup create 300.0 12345
-# fix temp1 all temp/berendsen 300.0 300.0 100.0
 fix fem1 movgroup femocs in.fem
 
-run 20
+run 10
 

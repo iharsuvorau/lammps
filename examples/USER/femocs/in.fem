@@ -16,7 +16,8 @@ t_ambient =  300.0  # temperature at the bottom of simulation cell [K]
 
 # General
 #---------------
-Vappl = 0.0                    # anode voltage [V]
+femocs_run_time = 4.0           # time step [fs]
+Vappl = 0.0                     # anode voltage [V]
 smoothen_field = true
 distance_tol = 0.0              # max rms distance atoms are allowed to move between runs before the solution is recalculated; 0 forces to recalculate every time-step
 n_writefile = 1                 # minimum number of time steps between writing file; 0 turns writing off

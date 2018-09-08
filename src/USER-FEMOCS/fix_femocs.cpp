@@ -140,7 +140,6 @@ void FixFemocs::post_force(int vflag)
   double **v = atom->v;
   int *mask = atom->mask;
   imageint *image = atom->image;
-
   int nlocal = atom->nlocal;
 
   // foriginal[0]     = "potential energy" for added force
@@ -159,44 +158,40 @@ void FixFemocs::post_force(int vflag)
   }
 
   // import atomistic data to Femocs
-  // NB! Due to sorting atom indices change between time steps
+  // NB! Due to sorting, atom indices change between time steps
   //     Maybe storing atoms helps as described in Developer.pdf
   print_msg("importing atoms...");
-  if (femocs.import_atoms(nlocal, &x[0][0])) {
+  if (femocs.import_atoms(nlocal, &x[0][0], mask, groupbit)) {
     print_msg("importing atoms failed!");
     return;
   }
 
   // solve equations
   print_msg("solving equations...");
-  if (femocs.run()) {
-    print_msg("solving equations failed!");
-    return;
+  if (femocs.run(update->ntimestep)) {
+    print_msg("solving equations failed, using previous solution!");
   }
 
-  // reallocate sforce array if necessary, otherwise just clean it
+  // reallocate sforce array if necessary, and clean it
   if (atom->nmax > maxatom) {
     maxatom = atom->nmax;
     memory->destroy(sforce);
     memory->create(sforce,maxatom,3,"femocs:sforce");
-  } else {
-    for (int i = 0; i < nlocal; i++) {
-      sforce[i][0] = sforce[i][1] = sforce[i][2] = 0;
-    }
+  }
+  for (int i = 0; i < nlocal; i++) {
+    sforce[i][0] = sforce[i][1] = sforce[i][2] = 0;
   }
 
   // export potential energy per atom (pair-potential)
   print_msg("exporting sum of pair potential...");
   if (femocs.export_data(&foriginal[0], 1, "pair_potential_sum")) {
     print_msg("exporting sum of pair potential failed!");
-    return;
   }
 
   // export electrostatic forces
   print_msg("exporting forces...");
   if (femocs.export_data(&sforce[0][0], nlocal, "force")) {
     print_msg("exporting forces failed!");
-    return;
   }
 
   print_msg("modifying forces & energies...");
@@ -333,68 +328,21 @@ void FixFemocs::post_force_manycore(int vflag)
   //*/
 }
 
-int FixFemocs::run_femocs(int n_atoms, double *xyz) {
-  // import atomistic data to Femocs
-  // NB! Due to sorting atom indices change between time steps
-  //     Maybe storing atoms helps as described in Developer.pdf
-  print_msg("importing atoms...");
-  if (femocs.import_atoms(n_atoms, xyz)) {
-    print_msg("importing atoms failed!");
-    return 1;
-  }
-
-  // solve equations
-  print_msg("solving equations...");
-  if (femocs.run()) {
-    print_msg("solving equations failed!");
-    return 1;
-  }
-
-  return 0;
-}
-
-int FixFemocs::export_forces(int n_atoms) {
-  int *mask = atom->mask;
-
-  // reallocate sforce array if necessary, otherwise just clean it
-  if (atom->nmax > maxatom) {
-    maxatom = atom->nmax;
-    memory->destroy(sforce);
-    memory->create(sforce,maxatom,3,"femocs:sforce");
-  } else {
-    for (int i = 0; i < n_atoms; i++) {
-      sforce[i][0] = sforce[i][1] = sforce[i][2] = 0;
-    }
-  }
-
-  // export potential energy per atom (pair-potential)
-  if (femocs.export_data(&foriginal[0], 1, "pair_potential_sum")) {
-    print_msg("exporting sum of pair potential failed!");
-    return 1;
-  }
-
-  // export electrostatic forces
-  if (femocs.export_data(&sforce[0][0], n_atoms, "force")) {
-    print_msg("exporting forces failed!");
-    return 1;
-  }
-
-  return 0;
-}
-
 void FixFemocs::end_of_step()
 {
+  // NB! Velocity scaling must take place every timestep
   double **v = atom->v;
   int nlocal = atom->nlocal;
 
+  print_msg("scaling velocities...");
   if (femocs.export_data(&v[0][0], nlocal, "velocity")) {
     print_msg("scaling velocities failed!");
     return;
   }
 
+  print_msg("exporting kinetic energy...");
   if (femocs.export_data(&kin_energy, nlocal, "kin_energy")) {
     print_msg("exporting kinetic energy failed!");
-    return;
   }
 }
 
@@ -478,3 +426,4 @@ double FixFemocs::memory_usage()
 {
   return maxatom * 3 * sizeof(double) + sizeof(femocs);
 }
+
