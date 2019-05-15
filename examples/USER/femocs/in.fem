@@ -7,23 +7,16 @@
 # Commands can be in any order
 #------------------------------------------
 
-# Fequently changing parameters
-#--------------------
-latconst  =  3.615  # lattice constant [A]
-radius    =  21     # inner radius of coarsening cylinder [A]
-elfield   = -1.0    # Max value of applied elctric field (V/Å)
-t_ambient =  300.0  # temperature at the bottom of simulation cell [K]
-
 # General
 #---------------
-femocs_run_time = 4.0           # time step [fs]
-Vappl = 0.0                     # anode voltage [V]
-smoothen_field = true
+md_timestep = 4.0               # time step [fs]
+latconst = 3.615                # lattice constant [A]
+radius = 21                     # inner radius of coarsening cylinder [A]
 distance_tol = 0.0              # max rms distance atoms are allowed to move between runs before the solution is recalculated; 0 forces to recalculate every time-step
-n_writefile = 1                 # minimum number of time steps between writing file; 0 turns writing off
-femocs_verbose_mode = silent    # control verbosity in console; mute, silent or verbose
-anode_bc = neumann              # boundary condition type at anode; dirichlet or neumann
-coarse_factor = 0.3 4 2         # coarsening factor; bigger number gives coarser surface
+write_period = 0.5              # time between writing file; 0 turns writing off
+femocs_verbose_mode = verbose    # control verbosity in console; mute, silent or verbose
+coarse_theta = 10               # apex angle of coarsening cylinder
+coarse_factor = 0.3 5 3         # coarsening factor; bigger number gives coarser surface
                                 # 1st - coarsening factor for atoms outside the coarsening cylinder
                                 # 2nd - minimum distance between atoms in nanotip below apex [latconst/4]
                                 # 3rd - minimum distance between atoms in nanotip apex [latconst/4]
@@ -34,9 +27,12 @@ clear_output = true             # clear out folder before the run
 coord_cutoff = 3.1              # coordination analysis cut-off radius [A]
 cluster_cutoff = 0              # cluster anal. cut-off radius [A]; if 0, cluster anal. uses coord_cutoff instead
 mesh_quality = 1.8              # minimum mesh quality Tetgen is allowed to make; smaller nr gives more symmetric elements
+coplanarity = 1.0               # parameter defining the max flatness of tetrahedron
 surface_smooth_factor = 1.1     # surface smoothing factor; bigger number gives smoother but more distorted surface
 smooth_steps = 3                # number of surface mesh smoothing iterations; 0 turns smoothing off
 cluster_anal = false            # enable or disable cluster analysis
+clean_surface = false
+charge_smooth_factor = 100.0
 
 # Parameters for extending simulation domain
 #---------------
@@ -50,9 +46,19 @@ bulk_height = 20                # bulk substrate height [latconst]
 #---------------
 work_function = 4.5             # work function [eV]
 emitter_blunt = true            # if true blunt emitter SN barrier approximation used
-maxerr_SC = 1.e-3               # convergence criterion for space charge loop
+emitter_cold = false
 
 # Heating parameters
 #---------------
-heating_mode = transient        # method to calculate heating effects in material; none, stationary, transient, converge
+heat_mode = none #transient           # method to calculate heating effects in material; none, stationary, transient, converge
 force_mode = all                # forces to be calculated; all, lorentz, none
+vscale_tau = 1500.0
+t_ambient =  300.0  # temperature at the bottom of simulation cell [K]
+
+# Field parameters
+#---------------
+field_mode = laplace
+field_cgtol = 1e-3
+elfield = -1.0                  # Max value of applied elctric field (V/Å)
+Vappl = 0.0                     # anode voltage [V]
+anode_bc = neumann              # boundary condition type at anode; dirichlet or neumann

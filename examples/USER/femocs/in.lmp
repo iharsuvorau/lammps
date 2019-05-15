@@ -125,5 +125,4 @@ fix nve1 all nve
 velocity movgroup create 300.0 12345
 fix fem1 movgroup femocs in.fem
 
-run 10
-
+run 2

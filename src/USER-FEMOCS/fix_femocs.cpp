@@ -35,7 +35,7 @@ FixFemocs::FixFemocs(LAMMPS *lmp, int narg, char **arg) :
   if (narg < 4)
     error->all(FLERR,"Illegal fix femocs command");
 
-  femocs.read_conf(arg[3]); // read Femocs configuration parameters
+  femocs.init(arg[3]); // read Femocs configuration parameters
 
   // optional args: every
 
@@ -161,7 +161,7 @@ void FixFemocs::post_force(int vflag)
   // NB! Due to sorting, atom indices change between time steps
   //     Maybe storing atoms helps as described in Developer.pdf
   print_msg("importing atoms...");
-  if (femocs.import_atoms(nlocal, &x[0][0], mask, groupbit)) {
+  if (femocs.import_lammps(nlocal, &x[0][0], &v[0][0], mask, groupbit)) {
     print_msg("importing atoms failed!");
     return;
   }
