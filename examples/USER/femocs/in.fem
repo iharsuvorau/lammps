@@ -9,21 +9,23 @@
 
 # General
 #---------------
-md_timestep = 4.0               # time step [fs]
+mass(1) = 63.55                 # mass of Cu atom [amu]
+md_timestep = 4.0               # MD time step [fs]
 latconst = 3.615                # lattice constant [A]
-radius = 21                     # inner radius of coarsening cylinder [A]
-distance_tol = 0.0              # max rms distance atoms are allowed to move between runs before the solution is recalculated; 0 forces to recalculate every time-step
-write_period = 0.5              # time between writing file; 0 turns writing off
-femocs_verbose_mode = verbose    # control verbosity in console; mute, silent or verbose
-coarse_theta = 10               # apex angle of coarsening cylinder
+radius = 23                     # inner radius of coarsening cylinder [A]
+distance_tol = 0.15             # max RMS distance atoms are allowed to move between runs before the solution is recalculated; 0 forces to recalculate every time-step
+write_period = 40               # time between writing file; 0 turns writing off
+n_read_conf = 0                 # nr of timesteps between re-reading conf file; 0 reads file only once
+femocs_verbose_mode = mute      # control verbosity in console; mute, silent or verbose
+clear_output = true             # clear out folder before the run
+coarse_theta = 10               # apex angle of coarsening cylinder [deg]
 coarse_factor = 0.3 5 3         # coarsening factor; bigger number gives coarser surface
                                 # 1st - coarsening factor for atoms outside the coarsening cylinder
                                 # 2nd - minimum distance between atoms in nanotip below apex [latconst/4]
                                 # 3rd - minimum distance between atoms in nanotip apex [latconst/4]
-clear_output = true             # clear out folder before the run
-
 # Atom processing
 #---------------
+nnn = 12                        # nr of nearest neighbours of bulk material within coord_cutoff radius; needs to be adjusted if coord_cutoff is changed
 coord_cutoff = 3.1              # coordination analysis cut-off radius [A]
 cluster_cutoff = 0              # cluster anal. cut-off radius [A]; if 0, cluster anal. uses coord_cutoff instead
 mesh_quality = 1.8              # minimum mesh quality Tetgen is allowed to make; smaller nr gives more symmetric elements
@@ -31,8 +33,8 @@ coplanarity = 1.0               # parameter defining the max flatness of tetrahe
 surface_smooth_factor = 1.1     # surface smoothing factor; bigger number gives smoother but more distorted surface
 smooth_steps = 3                # number of surface mesh smoothing iterations; 0 turns smoothing off
 cluster_anal = false            # enable or disable cluster analysis
-clean_surface = false
-charge_smooth_factor = 100.0
+clean_surface = false           # activate extra effort to clean surface atoms
+charge_smooth_factor = 100.0    # parameter controlling face-charge distribution
 
 # Parameters for extending simulation domain
 #---------------
@@ -50,15 +52,18 @@ emitter_cold = false
 
 # Heating parameters
 #---------------
-heat_mode = none #transient           # method to calculate heating effects in material; none, stationary, transient, converge
+heat_mode = transient           # method to calculate heating effects in material; none, stationary, transient, converge
 force_mode = all                # forces to be calculated; all, lorentz, none
-vscale_tau = 1500.0
-t_ambient =  300.0  # temperature at the bottom of simulation cell [K]
+vscale_tau = 10.0               # time constant in temperature scaler
+t_ambient =  300.0              # temperature at the bottom of simulation cell [K]
+heat_dt = 20                    # heat calculation time step [fs]
 
 # Field parameters
 #---------------
-field_mode = laplace
-field_cgtol = 1e-3
-elfield = -1.0                  # Max value of applied elctric field (V/Å)
-Vappl = 0.0                     # anode voltage [V]
+charge_tolerance 0.8 1.2        # min and max tolerance of charge calculation
+field_mode = laplace            # method to calculate field; laplace or transient
+field_cgtol = 1e-3              # tolerance of field solver
+elfield = -0.4                  # value of applied elctric field (V/Å)
+Vappl = 0.0                     # anode voltage when diriclet BC is used [V]
 anode_bc = neumann              # boundary condition type at anode; dirichlet or neumann
+
