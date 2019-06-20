@@ -29,25 +29,24 @@ using namespace LAMMPS_NS;
 
 FixFemocs::FixFemocs(LAMMPS *lmp, int narg, char **arg) :
                 Fix(lmp, narg, arg),
-                force_flag(0), ilevel_respa(0), maxatom(1), sforce(NULL)
+                force_flag(0), ilevel_respa(0), maxatom(1), sforce(NULL),
+                kin_energy(0), pot_energy(0), debug(0)
 {
-  // read path to Femocs conf file
+  // check for number of processors
+  if (comm->nprocs > 1)
+    error->all(FLERR,"Fix femocs can run only on single CPU core");
+
+  // check for the existence of path to Femocs conf file
   if (narg < 4)
     error->all(FLERR,"Illegal fix femocs command");
 
-  femocs.init(arg[3]); // read Femocs configuration parameters
+  // read debug output flag
+  if (narg > 4)
+    debug = atoi(arg[4]);
 
-  // optional args: every
+  // read Femocs configuration parameters
+  femocs.init(arg[3]);
 
-  int iarg = 4;
-  while (iarg < narg) {
-    if (strcmp(arg[iarg],"every") == 0) {
-      if (iarg+2 > narg) error->all(FLERR,"Illegal fix femocs command");
-      nevery = atoi(arg[iarg+1]);
-      if (nevery <= 0) error->all(FLERR,"Illegal fix femocs command");
-      iarg += 2;
-    }
-  }
 
   // flags related to force & velocity modification
   dynamic_group_allow = 1;
@@ -58,13 +57,10 @@ FixFemocs::FixFemocs(LAMMPS *lmp, int narg, char **arg) :
   extvector = 1;
   respa_level_support = 1;
   virial_flag = 1;
-
-  nevery = 1;  // temperature should be taken care in every time step
+  nevery = 1;
   global_freq = nevery;
 
   memory->create(sforce,maxatom,3,"femocs:sforce");
-
-  kin_energy = 0;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -79,7 +75,7 @@ FixFemocs::~FixFemocs()
 
 void FixFemocs::print_msg(char* msg)
 {
-  if (comm->me == 0) printf("FixFemocs: %s\n", msg);
+  if (debug > 0 && comm->me == 0) printf("FixFemocs: %s\n", msg);
 }
 
 /* ----------------------------------------------------------------------
@@ -121,52 +117,40 @@ void FixFemocs::post_force(int vflag)
   if (comm->nprocs > 1)
     error->all(FLERR,"Fix femocs can run only on single CPU core");
 
-  // check if it's time to rerun field solver
-  if (update->ntimestep % nevery) return;
-
   // energy and virial setup
   if (vflag) v_setup(vflag);
   else evflag = 0;
-
-  if (lmp->kokkos)
-    atom->sync_modify(Host, (unsigned int) (F_MASK | MASK_MASK),
-        (unsigned int) F_MASK);
 
   double virial[6];
   double unwrap[3];
 
   double **x = atom->x;
   double **f = atom->f;
-  double **v = atom->v;
+//  int *tag = atom->tag;  // might be needed to perform properly RMSD check
   int *mask = atom->mask;
   imageint *image = atom->image;
   int nlocal = atom->nlocal;
 
-  // foriginal[0]     = "potential energy" for added force
-  // foriginal[1,2,3] = force on atoms before extra force added
-  foriginal[0] = foriginal[1] = foriginal[2] = foriginal[3] = 0.0;
+  foriginal[0] = foriginal[1] = foriginal[2] = 0.0;
   force_flag = 0;
 
   // store total force before modification
-  print_msg("storing forces...");
   for (int i = 0; i < nlocal; i++) {
     if (mask[i] & groupbit) {
-      foriginal[1] += f[i][0];
-      foriginal[2] += f[i][1];
-      foriginal[3] += f[i][2];
+      foriginal[0] += f[i][0];
+      foriginal[1] += f[i][1];
+      foriginal[2] += f[i][2];
     }
   }
 
-  // import atomistic data to Femocs
   // NB! Due to sorting, atom indices change between time steps
   //     Maybe storing atoms helps as described in Developer.pdf
   print_msg("importing atoms...");
-  if (femocs.import_lammps(nlocal, &x[0][0], &v[0][0], mask, groupbit)) {
+  if (femocs.import_lammps(nlocal, x, NULL, mask, groupbit)) {
     print_msg("importing atoms failed!");
     return;
   }
 
-  // solve equations
   print_msg("solving equations...");
   if (femocs.run(update->ntimestep)) {
     print_msg("solving equations failed, using previous solution!");
@@ -182,19 +166,12 @@ void FixFemocs::post_force(int vflag)
     sforce[i][0] = sforce[i][1] = sforce[i][2] = 0;
   }
 
-  // export potential energy per atom (pair-potential)
-  print_msg("exporting sum of pair potential...");
-  if (femocs.export_data(&foriginal[0], 1, "pair_potential_sum")) {
-    print_msg("exporting sum of pair potential failed!");
-  }
-
-  // export electrostatic forces
   print_msg("exporting forces...");
   if (femocs.export_data(&sforce[0][0], nlocal, "force")) {
     print_msg("exporting forces failed!");
+    return;
   }
 
-  print_msg("modifying forces & energies...");
   for (int i = 0; i < nlocal; i++) {
     if (mask[i] & groupbit) {
       // add electrostatic force
@@ -215,6 +192,12 @@ void FixFemocs::post_force(int vflag)
         v_tally(i, virial);
       }
     }
+  }
+
+  print_msg("exporting potential energy...");
+  if (femocs.export_data(&pot_energy, nlocal, "pot_energy")) {
+    print_msg("exporting potential energy failed!");
+    return;
   }
 }
 
@@ -335,6 +318,8 @@ void FixFemocs::end_of_step()
   int nlocal = atom->nlocal;
 
   print_msg("scaling velocities...");
+  // import velocities here as there has been integration meanwhile
+  femocs.import_lammps(nlocal, NULL, v, atom->mask, groupbit);
   if (femocs.export_data(&v[0][0], nlocal, "velocity")) {
     print_msg("scaling velocities failed!");
     return;
@@ -343,6 +328,7 @@ void FixFemocs::end_of_step()
   print_msg("exporting kinetic energy...");
   if (femocs.export_data(&kin_energy, nlocal, "kin_energy")) {
     print_msg("exporting kinetic energy failed!");
+    return;
   }
 }
 
@@ -389,18 +375,12 @@ void FixFemocs::min_post_force(int vflag)
 }
 
 /* ----------------------------------------------------------------------
-   potential energy of added force
+   potential energy of added force and kinetic energy of scaled velocity
 ------------------------------------------------------------------------- */
 
 double FixFemocs::compute_scalar()
 {
-  // sum across procs only once
-
-  if (force_flag == 0) {
-    MPI_Allreduce(foriginal,foriginal_all,4,MPI_DOUBLE,MPI_SUM,world);
-    force_flag = 1;
-  }
-  return foriginal_all[0] + kin_energy;
+  return pot_energy + kin_energy;
 }
 
 /* ----------------------------------------------------------------------
@@ -412,10 +392,10 @@ double FixFemocs::compute_vector(int n)
   // sum across procs only once
 
   if (force_flag == 0) {
-    MPI_Allreduce(foriginal,foriginal_all,4,MPI_DOUBLE,MPI_SUM,world);
+    MPI_Allreduce(foriginal,foriginal_all,3,MPI_DOUBLE,MPI_SUM,world);
     force_flag = 1;
   }
-  return foriginal_all[n+1];
+  return foriginal_all[n];
 }
 
 /* ----------------------------------------------------------------------
@@ -424,6 +404,7 @@ double FixFemocs::compute_vector(int n)
 
 double FixFemocs::memory_usage()
 {
+  // TODO! Implement femocs.size()
   return maxatom * 3 * sizeof(double) + sizeof(femocs);
 }
 

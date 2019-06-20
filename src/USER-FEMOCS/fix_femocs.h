@@ -40,13 +40,15 @@ public:
 protected:
   femocs::Femocs femocs;
 
-  double foriginal[4],foriginal_all[4];
+  double foriginal[3],foriginal_all[3];  ///< Force on atoms before extra force added
   int force_flag;
   int ilevel_respa;
   int maxatom;
   double **sforce;
 
   double kin_energy;   ///< Kinetic energy added/removed due to temperature scaling
+  double pot_energy;   ///< Potential energy added/removed due to force scaling
+  int debug;           ///< Print debug messages to the console
 
   void print_msg(char* msg);
 };
