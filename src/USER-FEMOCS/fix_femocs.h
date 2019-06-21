@@ -35,20 +35,18 @@ public:
   double compute_vector(int);
   double memory_usage();
 
-  void post_force_manycore(int vflag);
-
 protected:
   femocs::Femocs femocs;
 
-  double foriginal[3],foriginal_all[3];  ///< Force on atoms before extra force added
+  double foriginal[3],foriginal_all[3];  ///< total force on atoms before extra force added
   int force_flag;
   int ilevel_respa;
-  int maxatom;
-  double **sforce;
+  int maxatom;         ///< max # of owned+ghost in arrays on this proc
+  double **sforce;     ///< extra force from FEMOCS
 
-  double kin_energy;   ///< Kinetic energy added/removed due to temperature scaling
-  double pot_energy;   ///< Potential energy added/removed due to force scaling
-  int debug;           ///< Print debug messages to the console
+  double pot_energy;   ///< potential energy added/removed due to force scaling
+  double kin_energy;   ///< kinetic energy added/removed due to temperature scaling
+  int debug;           ///< print debug messages to the console
 
   void print_msg(char* msg);
 };

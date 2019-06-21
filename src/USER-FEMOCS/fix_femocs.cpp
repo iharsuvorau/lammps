@@ -30,15 +30,15 @@ using namespace LAMMPS_NS;
 FixFemocs::FixFemocs(LAMMPS *lmp, int narg, char **arg) :
                 Fix(lmp, narg, arg),
                 force_flag(0), ilevel_respa(0), maxatom(1), sforce(NULL),
-                kin_energy(0), pot_energy(0), debug(0)
+                pot_energy(0), kin_energy(0), debug(0)
 {
   // check for number of processors
   if (comm->nprocs > 1)
-    error->all(FLERR,"Fix femocs can run only on single CPU core");
+    error->all(FLERR,"FixFemocs can run only on single CPU core");
 
   // check for the existence of path to Femocs conf file
   if (narg < 4)
-    error->all(FLERR,"Illegal fix femocs command");
+    error->all(FLERR,"Illegal FixFemocs command");
 
   // read debug output flag
   if (narg > 4)
@@ -70,7 +70,9 @@ FixFemocs::~FixFemocs()
   memory->destroy(sforce);
 }
 
-/* ---------------------------------------------------------------------- */
+/* ----------------------------------------------------------------------
+ * Small routine to print debug messages
+ * ---------------------------------------------------------------------- */
 
 
 void FixFemocs::print_msg(char* msg)
@@ -109,14 +111,11 @@ void FixFemocs::init()
 }
 
 /* ----------------------------------------------------------------------
- * Main method to calculate forces.
+ * Main method to run the Femocs and export forces
  * ---------------------------------------------------------------------- */
 
 void FixFemocs::post_force(int vflag)
 {
-  if (comm->nprocs > 1)
-    error->all(FLERR,"Fix femocs can run only on single CPU core");
-
   // energy and virial setup
   if (vflag) v_setup(vflag);
   else evflag = 0;
@@ -126,7 +125,6 @@ void FixFemocs::post_force(int vflag)
 
   double **x = atom->x;
   double **f = atom->f;
-//  int *tag = atom->tag;  // might be needed to perform properly RMSD check
   int *mask = atom->mask;
   imageint *image = atom->image;
   int nlocal = atom->nlocal;
@@ -143,8 +141,8 @@ void FixFemocs::post_force(int vflag)
     }
   }
 
-  // NB! Due to sorting, atom indices change between time steps
-  //     Maybe storing atoms helps as described in Developer.pdf
+  // NB! Due to sorting, atom indices may change between time steps.
+  //     The usage of atom->tag might be necessary.
   print_msg("importing atoms...");
   if (femocs.import_lammps(nlocal, x, NULL, mask, groupbit)) {
     print_msg("importing atoms failed!");
@@ -201,115 +199,9 @@ void FixFemocs::post_force(int vflag)
   }
 }
 
-void FixFemocs::post_force_manycore(int vflag)
-{
-  /*
-
-  // check if it's time to rerun field solver
-  if (update->ntimestep % nevery) return;
-
-  // energy and virial setup
-  if (vflag) v_setup(vflag);
-  else evflag = 0;
-
-  if (lmp->kokkos)
-    atom->sync_modify(Host, (unsigned int) (F_MASK | MASK_MASK),
-        (unsigned int) F_MASK);
-
-  double virial[6];
-  double unwrap[3];
-
-  double **x = atom->x;
-  double **f = atom->f;
-  double **v = atom->v;
-  int *mask = atom->mask;
-  imageint *image = atom->image;
-
-  int nlocal = atom->nlocal;
-  int nglobal = atom->natoms;
-  int n_procs = comm->nprocs;
-
-  // foriginal[0]     = "potential energy" for added force
-  // foriginal[1,2,3] = force on atoms before extra force added
-  foriginal[0] = foriginal[1] = foriginal[2] = foriginal[3] = 0.0;
-  force_flag = 0;
-
-  // store total force before modification
-  print_msg("storing forces...");
-  for (int i = 0; i < nlocal; i++) {
-    if (mask[i] & groupbit) {
-      foriginal[1] += f[i][0];
-      foriginal[2] += f[i][1];
-      foriginal[3] += f[i][2];
-    }
-  }
-
-  // TODO make proper allocation
-  int atoms_per_core[32];
-  int displ[32];
-  double x_all[1000];
-  double local_forces[1000];
-
-  MPI_Gather(nlocal, 1, MPI_INT, atoms_per_core, 1, MPI_INT, 0, world);
-
-  // TODO check proper displacements
-
-  for (int i = 0; i < n_procs; ++i)
-    for (int j = 0; j < atoms_per_core[i]; ++j)
-      displ[i] += atoms_per_core[j];
-
-  for (int i = 0; i < n_procs; ++i) {
-    atoms_per_core[i] *= 3;
-    displ[i] *= 3;
-  }
-
-  // TODO check how to properly gather 2D arrays
-
-  MPI_Gatherv(x, 3*nlocal, MPI_DOUBLE, x_all, atoms_per_core, displ, MPI_DOUBLE, 0, world);
-
-  // TODO handle errors properly
-
-  if (comm->me == 0) {
-    if (run_femocs(nglobal, &x[0][0])) return;
-    if (export_forces(nglobal)) return;
-  }
-
-  // TODO distribute pair potential between cores
-
-  foriginal[0] = 0;
-
-  for (int i = 0; i < nlocal; i++) {
-    if (mask[i] & groupbit)
-      foriginal[0] += pair_pot[i];
-  }
-
-  // TODO distribute forces between cores
-
-  print_msg("modifying forces & energies...");
-  for (int i = 0; i < nlocal; i++) {
-    if (mask[i] & groupbit) {
-      // add electrostatic force
-      f[i][0] += sforce[i][0];
-      f[i][1] += sforce[i][1];
-      f[i][2] += sforce[i][2];
-
-      // if requested, store atom-wise added energy
-      if (evflag) {
-        domain->unmap(x[i],image[i],unwrap);
-
-        virial[0] = sforce[i][0] * unwrap[0];
-        virial[1] = sforce[i][1] * unwrap[1];
-        virial[2] = sforce[i][2] * unwrap[2];
-        virial[3] = sforce[i][0] * unwrap[1];
-        virial[4] = sforce[i][0] * unwrap[2];
-        virial[5] = sforce[i][1] * unwrap[2];
-        v_tally(i, virial);
-      }
-    }
-  }
-
-  //*/
-}
+/* ----------------------------------------------------------------------
+ * Berendsen temperature scaling
+ * ---------------------------------------------------------------------- */
 
 void FixFemocs::end_of_step()
 {
@@ -348,8 +240,6 @@ void FixFemocs::setup(int vflag)
   }
 }
 
-/* ---------------------------------------------------------------------- */
-
 /* ----------------------------------------------------------------------
  * Setup in case the runs are continued and
  * information from the previous run is still valid.
@@ -375,8 +265,8 @@ void FixFemocs::min_post_force(int vflag)
 }
 
 /* ----------------------------------------------------------------------
-   potential energy of added force and kinetic energy of scaled velocity
-------------------------------------------------------------------------- */
+ *  Added/removed potential + kinetic energy due to velocity and force scaling
+ * ---------------------------------------------------------------------- */
 
 double FixFemocs::compute_scalar()
 {
@@ -384,8 +274,8 @@ double FixFemocs::compute_scalar()
 }
 
 /* ----------------------------------------------------------------------
-   return components of total force on fix group before force was changed
-------------------------------------------------------------------------- */
+ * Components of total force on fix group before force was changed
+ * ---------------------------------------------------------------------- */
 
 double FixFemocs::compute_vector(int n)
 {
@@ -399,12 +289,11 @@ double FixFemocs::compute_vector(int n)
 }
 
 /* ----------------------------------------------------------------------
-   memory usage of local atom-based array and Femocs object
-------------------------------------------------------------------------- */
+ * Memory usage of local atom-based array and Femocs object
+ * ---------------------------------------------------------------------- */
 
 double FixFemocs::memory_usage()
 {
-  // TODO! Implement femocs.size()
+  // TODO Implement femocs.size()
   return maxatom * 3 * sizeof(double) + sizeof(femocs);
 }
-
