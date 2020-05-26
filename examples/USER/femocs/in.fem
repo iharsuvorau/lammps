@@ -16,7 +16,7 @@ radius = 23                     # inner radius of coarsening cylinder [A]
 distance_tol = 0.15             # max RMS distance atoms are allowed to move between runs before the solution is recalculated; 0 forces to recalculate every time-step
 write_period = 40               # time between writing file; 0 turns writing off
 n_read_conf = 0                 # nr of timesteps between re-reading conf file; 0 reads file only once
-femocs_verbose_mode = mute      # control verbosity in console; mute, silent or verbose
+femocs_verbose_mode = silent    # control verbosity in console; mute, silent or verbose
 clear_output = true             # clear out folder before the run
 coarse_theta = 10               # apex angle of coarsening cylinder [deg]
 coarse_factor = 0.3 5 3         # coarsening factor; bigger number gives coarser surface
@@ -40,7 +40,7 @@ charge_smooth_factor = 100.0    # parameter controlling face-charge distribution
 #---------------
 #extended_atoms = in/extension.xyz   # file with atoms of extended surface
 femocs_periodic = true          # imported atoms have periodic boundaries in x- & y-direction; must be false in systems without slab
-box_width = 6                   # minimal simulation box width [tip height]
+box_width = 12                  # minimal simulation box width [tip height]
 box_height = 6                  # simulation box height [tip height]
 bulk_height = 20                # bulk substrate height [latconst]
 
@@ -61,9 +61,15 @@ heat_dt = 20                    # heat calculation time step [fs]
 # Field parameters
 #---------------
 charge_tolerance 0.8 1.2        # min and max tolerance of charge calculation
-field_mode = laplace            # method to calculate field; laplace or transient
+field_tolerance 0.1 5.0         # min and max allowed deviation of maximum field from the semianalytical one
+field_mode = transient          # method to calculate field; laplace or transient
 field_cgtol = 1e-3              # tolerance of field solver
-elfield = -0.4                  # value of applied elctric field (V/Å)
+elfield = -0.4                  # value of applied elctric field (V/Angstrom)
 Vappl = 0.0                     # anode voltage when diriclet BC is used [V]
 anode_bc = neumann              # boundary condition type at anode; dirichlet or neumann
 
+# PIC parameters
+#---------------
+pic_dtmax = 0.5                 # maximum time interval between particle push in PIC [fs]
+pic_collide_ee = true           # turn on electron superparticle collisions
+electron_weight = 0.01          # electron superparticle weight [nr of SPs]
