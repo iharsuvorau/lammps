@@ -1,12 +1,12 @@
 all: release
 
-release: ../../lib/femocs/lib/libfemocs.a ../fix_femocs.*
+release: ../../lib/femocs/lib/libfemocs.so ../fix_femocs.*
 	@cd .. && make -j4 ubuntu --no-print-directory
 
 ../fix_femocs.*: fix_femocs.*
 	@cp fix_femocs.* ..
 
-../../lib/femocs/lib/libfemocs.a: ../../lib/femocs/src/*.cpp ../../lib/femocs/include/*.h
+../../lib/femocs/lib/libfemocs.so: ../../lib/femocs/src/*.cpp ../../lib/femocs/include/*.h
 	@cd ../../lib/femocs && make lib --no-print-directory
 	@cp fix_femocs.* ..
 

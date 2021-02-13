@@ -51,7 +51,7 @@ if (test $1 = 1) then
     
     echo -e "include ../../lib/femocs/share/makefile.femocs\n" >> ../Makefile.package.settings
     echo "user-femocs_INC  =\
-      \$(patsubst -I%,-I../../lib/femocs/%, \$(subst -Ilib,,\$(FEMOCS_HEADPATH))) -DDEAL_II_WITH_LAMMPS -w"\
+      \$(patsubst -I%,-I../../lib/femocs/%, \$(subst -Ilib,,\$(FEMOCS_HEADPATH))) -w"\
       >> ../Makefile.package.settings
     echo "user-femocs_PATH =\
       \$(patsubst -L%,-L../../lib/femocs/%, \$(FEMOCS_LIBPATH))"\
