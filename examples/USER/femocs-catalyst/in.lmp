@@ -1,0 +1,130 @@
+# ===========================================
+# Sample LAMMPS input script for
+#  * making a nanotip on a subsrate,
+#  * running energy minimizer,
+#  * running the ED-MD simulation with FEMOCS.
+#
+# Mihkel Veske 2019
+#
+# -------------------------------------------
+# --- General settings
+# -------------------------------------------
+
+units		metal
+atom_style	atomic
+boundary	p p fs
+
+variable latConst    equal  3.615    # Cu lattice constant, 3.61492505 for 300 K
+variable inff        equal  1e10     # pseudo infinity
+
+variable radius      equal 20   # Angstroms
+variable height      equal 60   # Angstroms
+variable angle       equal 0    # Degrees
+variable orientation equal 100  # 100, 110 or 111
+
+# -------------------------------------------
+# --- Simulation cell dimensions
+# -------------------------------------------
+
+# Depending on the orientation, choose correct parameter
+variable substrX equal 32         # 64, 64 or 19.5
+variable substrY equal 32         # 64, 45 or 22.5
+variable substrH equal 2          # 4, 4.2 or 3.5
+variable divisH  equal 1          # 1, sqrt(2) or sqrt(3)
+variable divisR  equal 1          # 1, 1 or sqrt(3)
+
+variable rHigh   equal "v_radius / (v_latConst*v_divisR)"
+variable rLow    equal "(v_radius + (v_height-v_radius) * tan(v_angle*PI/180)) / (v_latConst*v_divisR)"
+variable coneH   equal "(v_height-v_radius) / (v_latConst*v_divisH)"
+
+# -------------------------------------------
+# -- Orientation of unit cell
+# -------------------------------------------
+
+if   "${orientation} == 100" then &
+    "lattice fcc ${latConst} orient x 0 0 -1 orient y  0 1 0 orient z 1 0 0" &
+elif "${orientation} == 110" &
+    "lattice fcc ${latConst} orient x 0 0 -1 orient y -1 1 0 orient z 1 1 0" &
+elif "${orientation} == 111" &
+    "lattice fcc ${latConst} orient x 1 1 -2 orient y -1 1 0 orient z 1 1 1" &
+else "print 'Unknown orientation!'" "quit"
+
+# -------------------------------------------
+# --- Create regions and atoms
+# -------------------------------------------
+
+region     apex        sphere 0 0 $(v_height-v_radius) $(v_radius) units box
+region     protrusion  cone   z 0 0 $(v_rLow) $(v_rHigh) 0 $(v_coneH)
+region     substrate   block  $(-v_substrX) $(v_substrX) $(-v_substrY) $(v_substrY) $(-v_substrH) 0 units lattice
+region     bigBox      block  $(-v_substrX) $(v_substrX) $(-v_substrY) $(v_substrY) $(-v_substrH) $(v_height/v_latConst) units lattice
+region     smallBox    block  $(-2*v_radius) $(2*v_radius) $(-2*v_radius) $(2*v_radius) 0 $(v_height) units box
+region     atomRegion  union  3 substrate apex protrusion
+region     protRegion  union  2 apex protrusion
+
+if "${substrH} == 0" then &
+    "create_box 1 smallBox" &
+    "create_atoms 1 region protRegion" &
+else &
+    "create_box 1 bigBox" &
+    "create_atoms 1 region atomRegion"
+
+variable   lower      equal "zlo+v_latConst/3"  # z-max of the fixed layer
+region     botRegion  block -${inff} ${inff} -${inff} ${inff} -${inff} ${lower}   units box
+
+group      topGroup  region apex
+group      botGroup  region botRegion
+group      movGroup  subtract all botGroup
+
+# -------------------------------------------
+# --- Specify potential and time step
+# -------------------------------------------
+
+pair_style eam/alloy
+pair_coeff * * in/Cu_mishin1.eam.alloy Cu
+
+timestep  0.004
+
+# -------------------------------------------
+# --- Specify fixes and initialize
+# -------------------------------------------
+
+reset_timestep  0
+
+# --- Fix the bottom
+fix botForce botGroup setforce 0 0 0
+
+# --- Run energy minimization with conjugate-gradient algorithm
+#variable   runTime equal 1000.0
+#min_style  cg
+#minimize   1e-25 1e-25 ${runTime} 100000
+
+# --- Create velocity distribution
+fix       dynamics all nve
+velocity  movGroup create 300.0 12345
+
+# --- Apply Berendsen thermostat
+#fix  mainReservoir all temp/berendsen 300.0 300.0 0.01
+
+## --- Include FEMOCS
+fix  fem all femocs in.fem 0
+
+# -------------------------------------------
+# --- Specify console and file output
+# -------------------------------------------
+
+variable dumpName    string "out/tip_*.dump"
+variable dumpPeriod  equal 10
+
+dump    realDump all custom ${dumpPeriod} ${dumpName} type x y z vx vy vz fx fy fz
+compute tTop topGroup temp # temperature of apex
+compute tMov movGroup temp # average temperature of whole moving system
+
+thermo  1
+thermo_style  custom step cpu c_tMov c_tTop vol f_fem
+
+# -------------------------------------------
+# --- Run simulation
+# -------------------------------------------
+
+run 200
+
