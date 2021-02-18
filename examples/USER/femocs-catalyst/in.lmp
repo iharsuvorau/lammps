@@ -106,7 +106,7 @@ velocity  movGroup create 300.0 12345
 #fix  mainReservoir all temp/berendsen 300.0 300.0 0.01
 
 ## --- Include FEMOCS
-fix  fem all femocs in.fem 0
+fix fem all femocs/visual in.fem quadrangles elfield paraview_pipeline.py 0
 
 # -------------------------------------------
 # --- Specify console and file output

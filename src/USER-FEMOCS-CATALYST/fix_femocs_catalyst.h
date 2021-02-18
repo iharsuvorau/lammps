@@ -1,5 +1,5 @@
 #ifdef FIX_CLASS
-FixStyle(femocs,FixFemocs)
+FixStyle(femocs/catalyst,FixFemocsCatalyst)
 #else
 
 #ifndef LMP_FIX_FEMOCS_H
@@ -11,14 +11,14 @@ FixStyle(femocs,FixFemocs)
 namespace LAMMPS_NS {
 
     /**
-      *  @class FixFemocs
+      *  @class FixFemocsCatalyst
       *  @brief Class for including effects of high electric field.
       */
-    class FixFemocs : public Fix {
+    class FixFemocsCatalyst : public Fix {
     public:
-        FixFemocs(class LAMMPS *, int, char **);
+        FixFemocsCatalyst(class LAMMPS *, int, char **);
 
-        virtual ~FixFemocs();
+        virtual ~FixFemocsCatalyst();
 
         int setmask();
 

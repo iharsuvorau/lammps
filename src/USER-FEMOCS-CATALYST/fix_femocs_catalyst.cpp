@@ -11,7 +11,7 @@
    See the README file in the top-level LAMMPS directory.
 ------------------------------------------------------------------------- */
 
-#include "fix_femocs.h"
+#include "fix_femocs_catalyst.h"
 #include "comm.h"
 #include "math_extra.h"
 #include "atom.h"
@@ -27,17 +27,17 @@ using namespace LAMMPS_NS;
  * Read the arguments and initialize internals
  * ---------------------------------------------------------------------- */
 
-FixFemocs::FixFemocs(LAMMPS *lmp, int narg, char **arg) :
+FixFemocsCatalyst::FixFemocsCatalyst(LAMMPS *lmp, int narg, char **arg) :
         Fix(lmp, narg, arg),
         force_flag(0), ilevel_respa(0), maxatom(1), sforce(NULL),
         pot_energy(0), kin_energy(0), debug(0) {
     // check for number of processors
     if (comm->nprocs > 1)
-        error->all(FLERR, "FixFemocs can run only on single CPU core");
+        error->all(FLERR, "FixFemocsCatalyst can run only on single CPU core");
 
     // check for the existence of path to Femocs conf file
-    if (narg < 4)
-        error->all(FLERR, "Illegal FixFemocs command");
+    if (narg < 7)
+        error->all(FLERR, "Illegal FixFemocsCatalyst command");
 
     // read debug output flag
     if (narg > 4)
@@ -64,7 +64,7 @@ FixFemocs::FixFemocs(LAMMPS *lmp, int narg, char **arg) :
 
 /* ---------------------------------------------------------------------- */
 
-FixFemocs::~FixFemocs() {
+FixFemocsCatalyst::~FixFemocsCatalyst() {
     memory->destroy(sforce);
 }
 
@@ -73,15 +73,15 @@ FixFemocs::~FixFemocs() {
  * ---------------------------------------------------------------------- */
 
 
-void FixFemocs::print_msg(char *msg) {
-    if (debug > 0 && comm->me == 0) printf("FixFemocs: %s\n", msg);
+void FixFemocsCatalyst::print_msg(char *msg) {
+    if (debug > 0 && comm->me == 0) printf("FixFemocsCatalyst: %s\n", msg);
 }
 
 /* ----------------------------------------------------------------------
  * Specify the routines LAMMPS engine is going to call
  * ---------------------------------------------------------------------- */
 
-int FixFemocs::setmask() {
+int FixFemocsCatalyst::setmask() {
     datamask_read = datamask_modify = 0;
 
     int mask = 0;
@@ -97,7 +97,7 @@ int FixFemocs::setmask() {
  * Continue initializing internals
  * ---------------------------------------------------------------------- */
 
-void FixFemocs::init() {
+void FixFemocsCatalyst::init() {
     if (strstr(update->integrate_style, "respa")) {
         ilevel_respa = ((Respa *) update->integrate)->nlevels - 1;
         if (respa_level >= 0)
@@ -109,7 +109,7 @@ void FixFemocs::init() {
  * Main method to run the Femocs and export forces
  * ---------------------------------------------------------------------- */
 
-void FixFemocs::post_force(int vflag) {
+void FixFemocsCatalyst::post_force(int vflag) {
     // energy and virial setup
     if (vflag) v_setup(vflag);
     else evflag = 0;
@@ -197,7 +197,7 @@ void FixFemocs::post_force(int vflag) {
  * Berendsen temperature scaling
  * ---------------------------------------------------------------------- */
 
-void FixFemocs::end_of_step() {
+void FixFemocsCatalyst::end_of_step() {
     // NB! Velocity scaling must take place every timestep
     double **v = atom->v;
     int nlocal = atom->nlocal;
@@ -222,7 +222,7 @@ void FixFemocs::end_of_step() {
  * It is required by the velocity-Verlet method.
  * ---------------------------------------------------------------------- */
 
-void FixFemocs::setup(int vflag) {
+void FixFemocsCatalyst::setup(int vflag) {
     if (strstr(update->integrate_style, "verlet"))
         post_force(vflag);
     else {
@@ -237,19 +237,19 @@ void FixFemocs::setup(int vflag) {
  * information from the previous run is still valid.
  * ---------------------------------------------------------------------- */
 
-void FixFemocs::min_setup(int vflag) {
+void FixFemocsCatalyst::min_setup(int vflag) {
     post_force(vflag);
 }
 
 /* ---------------------------------------------------------------------- */
 
-void FixFemocs::post_force_respa(int vflag, int ilevel, int iloop) {
+void FixFemocsCatalyst::post_force_respa(int vflag, int ilevel, int iloop) {
     if (ilevel == ilevel_respa) post_force(vflag);
 }
 
 /* ---------------------------------------------------------------------- */
 
-void FixFemocs::min_post_force(int vflag) {
+void FixFemocsCatalyst::min_post_force(int vflag) {
     post_force(vflag);
 }
 
@@ -257,7 +257,7 @@ void FixFemocs::min_post_force(int vflag) {
  *  Added/removed potential + kinetic energy due to velocity and force scaling
  * ---------------------------------------------------------------------- */
 
-double FixFemocs::compute_scalar() {
+double FixFemocsCatalyst::compute_scalar() {
     return pot_energy + kin_energy;
 }
 
@@ -265,7 +265,7 @@ double FixFemocs::compute_scalar() {
  * Components of total force on fix group before force was changed
  * ---------------------------------------------------------------------- */
 
-double FixFemocs::compute_vector(int n) {
+double FixFemocsCatalyst::compute_vector(int n) {
     // sum across procs only once
 
     if (force_flag == 0) {
@@ -279,7 +279,7 @@ double FixFemocs::compute_vector(int n) {
  * Memory usage of local atom-based array and Femocs object
  * ---------------------------------------------------------------------- */
 
-double FixFemocs::memory_usage() {
+double FixFemocsCatalyst::memory_usage() {
     // TODO Implement femocs.size()
     return maxatom * 3 * sizeof(double) + sizeof(femocs);
 }
