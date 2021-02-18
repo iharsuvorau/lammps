@@ -20,6 +20,7 @@
 #include "domain.h"
 #include "respa.h"
 #include "memory.h"
+#include "CatalystAdaptor.h"
 
 using namespace LAMMPS_NS;
 
@@ -40,11 +41,17 @@ FixFemocsCatalyst::FixFemocsCatalyst(LAMMPS *lmp, int narg, char **arg) :
         error->all(FLERR, "Illegal FixFemocsCatalyst command");
 
     // read debug output flag
-    if (narg > 4)
-        debug = atoi(arg[4]);
+    if (narg > 7)
+        debug = atoi(arg[7]);
 
     // read Femocs configuration parameters
     femocs.init(arg[3]);
+
+    // catalyst configuration
+    export_field = arg[4];
+    export_cell = arg[5];
+    paraview_script = arg[6];
+    CatalystAdaptor::Initialize(paraview_script);
 
 
     // flags related to force & velocity modification
@@ -66,6 +73,7 @@ FixFemocsCatalyst::FixFemocsCatalyst(LAMMPS *lmp, int narg, char **arg) :
 
 FixFemocsCatalyst::~FixFemocsCatalyst() {
     memory->destroy(sforce);
+    CatalystAdaptor::Finalize();
 }
 
 /* ----------------------------------------------------------------------
@@ -215,6 +223,12 @@ void FixFemocsCatalyst::end_of_step() {
         print_msg("exporting kinetic energy failed!");
         return;
     }
+
+    // passing data to Catalyst
+    double time = update->ntimestep;
+    unsigned int timestep = update->ntimestep;
+    bool last_timestep = update->ntimestep == update->nsteps;
+    CatalystAdaptor::CoProcess(femocs, time, timestep, last_timestep);
 }
 
 /* ----------------------------------------------------------------------
