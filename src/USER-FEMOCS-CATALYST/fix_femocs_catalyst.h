@@ -55,6 +55,10 @@ namespace LAMMPS_NS {
         double kin_energy;   ///< kinetic energy added/removed due to temperature scaling
         int debug;           ///< print debug messages to the console
 
+        char *paraview_script; ///< ParaView visualization script
+        char *export_field; ///< label describes what data to pass to the Catalyst Adaptor, see femocs/include/Globals.h -> Labels for possible values
+        char *export_cell; ///< label describes what data to pass to the Catalyst Adaptor, see femocs/include/Globals.h -> Labels for possible values
+
         void print_msg(char *msg);
     };
 
