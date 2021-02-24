@@ -38,39 +38,32 @@ done
 if (test $1 = 1) then
 
   if (test -e ../Makefile.package) then
-    sed -i -e 's/[^ \t]*femocs[^ \t]* //' ../Makefile.package
+    sed -i -e 's/[^ \t]*femocs-catalyst[^ \t]* //' ../Makefile.package
     
-    sed -i -e 's|^PKG_INC =[ \t]*|&$(user-femocs_INC) |' ../Makefile.package
-    sed -i -e 's|^PKG_LIB =[ \t]*|&$(user-femocs_LIB) |' ../Makefile.package
-    sed -i -e 's|^PKG_PATH =[ \t]*|&$(user-femocs_PATH) |' ../Makefile.package
+    sed -i -e 's|^PKG_INC =[ \t]*|&$(user-femocs-catalyst_INC) |' ../Makefile.package
+    sed -i -e 's|^PKG_LIB =[ \t]*|&$(user-femocs-catalyst_LIB) |' ../Makefile.package
+    sed -i -e 's|^PKG_PATH =[ \t]*|&$(user-femocs-catalyst_PATH) |' ../Makefile.package
   fi
 
   if (test -e ../Makefile.package.settings) then
-    sed -i -e '/^include.*femocs.*$/d' ../Makefile.package.settings
-    sed -i -e 's/[^ \t]*user-femocs[^ \t]* //' ../Makefile.package.settings
+    sed -i -e '/^include.*femocs-catalyst.*$/d' ../Makefile.package.settings
+    sed -i -e 's/[^ \t]*user-femocs-catalyst[^ \t]* //' ../Makefile.package.settings
     
-    echo -e "include ../../lib/femocs/share/makefile.femocs\n" >> ../Makefile.package.settings
-    echo "user-femocs_INC  =\
-      \$(patsubst -I%,-I../../lib/femocs/%, \$(subst -Ilib,,\$(FEMOCS_HEADPATH))) -w"\
-      >> ../Makefile.package.settings
-    echo "user-femocs_PATH =\
-      \$(patsubst -L%,-L../../lib/femocs/%, \$(FEMOCS_LIBPATH))"\
-      >> ../Makefile.package.settings
-    echo "user-femocs_LIB  =\
-      \$(FEMOCS_LIB)"\
-      >> ../Makefile.package.settings
+    echo "user-femocs-catalyst_INC  = \$(patsubst -I%,-I../../lib/femocs/%, \$(subst -Ilib,,\$(FEMOCS_HEADPATH))) -w" >> ../Makefile.package.settings
+    echo "user-femocs-catalyst_PATH = \$(patsubst -L%,-L../../lib/femocs/%, \$(FEMOCS_LIBPATH))" >> ../Makefile.package.settings
+    echo "user-femocs-catalyst_LIB  = \$(FEMOCS_LIB)" >> ../Makefile.package.settings
   fi
 
 # edit Makefile.package(.settings) files to exclude package info
 elif (test $1 = 0) then
 
   if (test -e ../Makefile.package) then
-    sed -i -e 's/[^ \t]*femocs[^ \t]* //' ../Makefile.package
+    sed -i -e 's/[^ \t]*femocs-catalyst[^ \t]* //' ../Makefile.package
   fi
 
   if (test -e ../Makefile.package.settings) then
-    sed -i -e '/^include.*femocs.*$/d' ../Makefile.package.settings
-    sed -i -e '/^user-femocs.*$/d' ../Makefile.package.settings
+    sed -i -e '/^include.*femocs-catalyst.*$/d' ../Makefile.package.settings
+    sed -i -e '/^user-femocs-catalyst.*$/d' ../Makefile.package.settings
   fi
 
 fi
