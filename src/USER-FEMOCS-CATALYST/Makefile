@@ -1,28 +1,18 @@
 all: release
 
-release: ../../lib/femocs/lib/libfemocs.so ../fix_femocs.*
-	@cd .. && make -j4 ubuntu --no-print-directory
+release: ../../lib/femocs-catalyst/build/libCatalystAdaptor.a ../fix_femocs_catalyst.*
+	cd .. && make -j4 ubuntu --no-print-directory
 
-../fix_femocs.*: fix_femocs.*
-	@cp fix_femocs.* ..
+../fix_femocs_catalyst.*: fix_femocs_catalyst.*
+	cp fix_femocs_catalyst.* ..
 
-../../lib/femocs/lib/libfemocs.so: ../../lib/femocs/src/*.cpp ../../lib/femocs/include/*.h
-	@cd ../../lib/femocs && make lib --no-print-directory
-	@cp fix_femocs.* ..
-
-install: ../../lib/femocs/Makefile
-	@cd ../../lib/femocs && make install-ubuntu --no-print-directory
-	@cd .. && make no-manybody no-user-femocs --no-print-directory
-	@cd .. && make yes-manybody yes-user-femocs --no-print-directory
-
-../../lib/femocs/Makefile:
-	@git submodule init && git submodule update --recursive
+../../lib/femocs-catalyst/build/libCatalystAdaptor.a: ../../lib/femocs-catalyst/src/CatalystAdaptor.*
+	cd ../../lib && git clone --recursive https://github.com/iharsuvorau/catalyzing-femocs.git femocs-catalyst && cd femocs-catalyst &&  make
 
 clean:
 	@cd .. && make clean --no-print-directory
-	@cd ../../lib/femocs && make clean --no-print-directory
+	@cd ../../lib/femocs-catalyst && make clean --no-print-directory
 
 help:
 	@echo ''
-	@echo 'make install   initialize FEMOCS and install its dependencies'
-	@echo 'make           compile & link LAMMPS and FEMOCS'
+	@echo 'make           compile & link LAMMPS and FEMOCS-CATALYST'
